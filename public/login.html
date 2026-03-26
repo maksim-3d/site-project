@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вход - Мессенджер</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preload" href="styles.css" as="style">
+</head>
+<body>
+  <div id="app">
+    <div id="auth" class="auth-container">
+      <h2>Вход в мессенджер</h2>
+      <form id="loginForm">
+        <input type="text" id="username" placeholder="Имя пользователя" required>
+        <input type="password" id="password" placeholder="Пароль" required>
+        <button type="submit">Вход</button>
+      </form>
+      <p>Нет учетной записи? <a href="/register.html">Создайте одну</a></p>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          window.location.href = '/index.html';
+        } else {
+          alert(data.error);
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        alert('Ошибка входа');
+      }
+    });
+  </script>
+</body>
+</html>

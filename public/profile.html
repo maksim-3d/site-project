@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Профиль - Мессенджер</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <div class="profile-container">
+      <div class="profile-header">
+        <button id="backBtn" class="back-btn">← Назад</button>
+        <h2>Редактировать профиль</h2>
+      </div>
+
+      <div class="profile-pic-section">
+        <div class="profile-pic-large">
+          <img id="profilePic" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Crect fill='%23e0e0e0' width='150' height='150'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='16'%3E150x150%3C/text%3E%3C/svg%3E" alt="Фото профиля">
+        </div>
+        <input type="file" id="profilePicInput" accept="image/*" style="display: none;">
+        <button id="changePicBtn" class="change-pic-btn">Изменить фото</button>
+      </div>
+
+      <form id="profileForm">
+        <div class="form-group">
+          <label for="customUsername">Пользовательское имя</label>
+          <input type="text" id="customUsername" placeholder="Введите имя (без @)">
+          <small>Необязательно. Люди смогут найти вас по @имя</small>
+        </div>
+        <div class="form-group">
+          <label for="bio">О себе</label>
+          <textarea id="bio" placeholder="Расскажите о себе..." maxlength="200"></textarea>
+          <small>Необязательно. Максимум 200 символов</small>
+        </div>
+        <button type="submit" class="save-btn">💾 Сохранить изменения</button>
+      </form>
+
+      <div id="adminPanel" class="admin-panel hidden">
+        <h3>Панель администратора</h3>
+        <div class="admin-controls">
+          <input type="text" id="adminUserId" placeholder="ID пользователя">
+          <input type="text" id="adminPrefix" placeholder="Префикс (например MOD, VIP)">
+          <button id="setPrefixBtn" class="admin-btn">Установить префикс</button>
+          <select id="adminRole">
+            <option value="user">Пользователь</option>
+            <option value="admin">Администратор</option>
+          </select>
+          <button id="setRoleBtn" class="admin-btn">Установить роль</button>
+        </div>
+      </div>
+
+      <div class="danger-zone">
+        <h3>Опасная зона</h3>
+        <button id="deleteAccountBtn" class="delete-btn">Удалить учетную запись</button>
+      </div>
+
+      <div class="profile-actions">
+        <button id="logoutBtn" class="logout-btn">Выход</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const profilePic = document.getElementById('profilePic');
+    const profilePicInput = document.getElementById('profilePicInput');
+    const changePicBtn = document.getElementById('changePicBtn');
+    const profileForm = document.getElementById('profileForm');
+    const customUsername = document.getElementById('customUsername');
+    const bio = document.getElementById('bio');
+    const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+    const backBtn = document.getElementById('backBtn');
+    const adminPanel = document.getElementById('adminPanel');
+    const setPrefixBtn = document.getElementById('setPrefixBtn');
+    const setRoleBtn = document.getElementById('setRoleBtn');
+    const adminUserId = document.getElementById('adminUserId');
+    const adminPrefix = document.getElementById('adminPrefix');
+    const adminRole = document.getElementById('adminRole');
+
+    // Load current profile
+    fetch('/me', {
+      credentials: 'include'
+    })
+    .then(response => response.json())
+    .then(user => {
+      if (user.custom_username) customUsername.value = user.custom_username;
+      if (user.profile_pic) profilePic.src = user.profile_pic;
+      if (user.bio) bio.value = user.bio;
+
+      // Show admin panel if user is admin
+      if (user.role === 'admin') {
+        adminPanel.classList.remove('hidden');
+      }
+    });
+
+    changePicBtn.addEventListener('click', () => {
+      profilePicInput.click();
+    });
+
+    profilePicInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          profilePic.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    profileForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const customUser = customUsername.value.trim().replace(/^@+/, ''); // Remove leading @
+      const formData = {
+        custom_username: customUser || null,
+        profile_pic: profilePic.src.startsWith('data:') ? profilePic.src : null,
+        bio: bio.value.trim() || null
+      };
+
+      try {
+        const response = await fetch('/update-profile', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          alert('Профиль успешно обновлен!');
+        } else {
+          alert(data.error);
+        }
+      } catch (error) {
+        console.error('Update profile error:', error);
+          alert('Ошибка при обновлении профиля');
+      }
+    });
+
+    deleteAccountBtn.addEventListener('click', async () => {
+      if (confirm('Вы уверены, что хотите удалить вашу учетную запись? Это действие нельзя отменить.')) {
+        try {
+          const response = await fetch('/delete-account', {
+            method: 'POST',
+            credentials: 'include'
+          });
+
+          if (response.ok) {
+            alert('Учетная запись успешно удалена');
+            window.location.href = '/login';
+          } else {
+            alert('Ошибка при удалении учетной записи');
+          }
+        } catch (error) {
+          console.error('Delete account error:', error);
+          alert('Failed to delete account');
+        }
+      }
+    });
+
+    backBtn.addEventListener('click', () => {
+      window.location.href = '/index.html';
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        const response = await fetch('/logout', { method: 'POST' });
+        window.location.href = '/login.html';
+      } catch (error) {
+        console.error('Logout error:', error);
+        window.location.href = '/login.html';
+      }
+    });
+
+    // Admin functionality
+    setPrefixBtn.addEventListener('click', () => {
+      const userId = adminUserId.value.trim();
+      const prefix = adminPrefix.value.trim();
+
+      if (!userId) {
+        alert('Пожалуйста, введите ID пользователя');
+        return;
+      }
+
+      fetch('/set-prefix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ userId: parseInt(userId), prefix })
+      }).then(response => response.json())
+      .then(data => {
+        if (data.message) {
+          alert('Префикс успешно установлен');
+          adminUserId.value = '';
+          adminPrefix.value = '';
+        } else {
+          alert(data.error || 'Ошибка при установке префикса');
+        }
+      });
+    });
+
+    setRoleBtn.addEventListener('click', () => {
+      const userId = adminUserId.value.trim();
+      const role = adminRole.value;
+
+      if (!userId) {
+        alert('Пожалуйста, введите ID пользователя');
+        return;
+      }
+
+      fetch('/set-role', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ userId: parseInt(userId), role })
+      }).then(response => response.json())
+      .then(data => {
+        if (data.message) {
+          alert('Роль успешно установлена');
+          adminUserId.value = '';
+        } else {
+          alert(data.error || 'Ошибка при установке роли');
+        }
+      });
+    });
+
+  </script>
+</body>
+</html>
